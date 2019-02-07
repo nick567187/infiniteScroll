@@ -3,105 +3,92 @@ import React from 'react';
 class App extends React.Component {
 	constructor(props) {
 		super(props);
-
-		this.state = {
-			error: false,
+    this.state = {
+      hasError: false,
       hasMore: true,
-			isLoading: false,
+      isLoading: false,
       data: [],
-		};
-    this.loadData = this.loadData.bind(this);
-		window.onscroll = () => {
-			const {
+      dataType: true,
+      initialLoad: true,
+    }
+    window.onscroll = () => {
+      const {
         loadData,
         state: {
-          error,
           hasMore,
           isLoading,
-        }    
-			} = this;
-
-			if (error || isLoading || !hasMore) return;
-      				console.log(window.innerHeight + document.documentElement.scrollTop, '1')
-              console.log(document.documentElement.offsetHeight - 200, '2');
-			if (
-				window.innerHeight + document.documentElement.scrollTop >
-				document.documentElement.offsetHeight - 200
-			) {
-				console.log('in')
-				loadData();
-			}
-		};
-
+          hasError
+        }
+      } = this;
+      if (!hasMore || isLoading || hasError) return;
+      // scrollTop = top of screen when scrolling. innerHeight = height of screen. offsetHeight = total height of content
+      if (document.documentElement.scrollTop + window.innerHeight > document.documentElement.offsetHeight - 200) {
+        this.loadData();
+      }
+    }
 	}
 
   componentDidMount() {
-  	this.loadData();
+    this.loadData();
   }
 
   loadData() {
     this.setState({isLoading: true}, () => {
-    	fetch('/data')
-    	  .then((result) => result.json())
-    	  .then((result) => {
-          const newData = result.map(data => ({
-            name: 'test',
-            id: '1',
-            sex: 'M'
-          }));
-
+      // swap between male and female api
+      const url = this.state.dataType ? '/male' : '/female';
+      fetch(url)
+        .then((res) => res.json())
+        .then((newData) => {
+          this.setState((prevState) => {
+            // hasMoreContent check contingent on initial load where data is initialized at []
+            let hasMoreContent = true;
+            if (!prevState.initialLoad) {
+              hasMoreContent = prevState.data.length < 100 ? false : true;
+            }
+            return {
+              isLoading: false,
+              hasMore: hasMoreContent,
+              data: [
+                ...prevState.data,
+                ...newData
+              ],
+              dataType: !prevState.dataType,
+              initialLoad: false
+            }
+          })  
+        })
+        .catch((err) => {
           this.setState({
-          	hasMore: true,
-            isLoading: false,
-            data: [
-              ...this.state.data,
-              ...newData,
-            ],
+            hasError: err
           });
-    	  })
-    	  .catch((err) => {
-    	  	this.setState({
-    	  		error: err.message,
-    	  		isLoading: false,
-    	  	});
-    	  })
+        });
     });
   }
 
   render() {
-  	const {
-  		error,
-  		hasMore,
-  		isLoading,
-  		data,
-  	} = this.state;
+    const {
+      hasError,
+      isLoading,
+      hasMore,
+      data
+    } = this.state;
 	  return (
 	    <div>
 	      <p>Welcome to Infinite Scroll!</p>
-		    {data.map(ele => (
-		      <React.Fragment>
-		        <hr />
-		        <div style={{display: 'flex'}}> 
-	            {ele.name} has a gender of {ele.sex}
-	          </div>
-		      </React.Fragment>	
-		    ))}
-		    <hr />
-		    {error && 
-		    	<div style={{color: 'red'}}>
-	          {error}
-		    	</div>
-		    }
-		    {isLoading &&
-	        <div style={{color: 'blue'}}>
-	          I'm currently loading...
-		    	</div>
-		    }
-		    {!hasMore &&
-	        <div style={{color: 'orange'}}>
-	          You've reached the end!
-		    	</div>
-		    }
+        {
+          data.map(ele => {
+            return (
+              <div>
+                <hr />
+                <p>{ele.sex} is currently {ele.age}</p>
+              </div>
+            );
+          })
+        }
+        <hr />
+        {hasError && <div style={{color: 'red'}}>{hasError}</div>}
+        {isLoading && <div style={{color: 'blue'}}>Please wait while we load the next batch of information</div>}
+        {!hasMore && <div style={{color: 'orange'}}>You've reached the end!</div>}
 	    </div>
 	  );
   }
